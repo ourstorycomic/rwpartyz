@@ -14,8 +14,6 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
-// Khởi tạo WebTorrent Client
 const wtClient = new WebTorrent();
 
 // ==========================================
@@ -26,6 +24,9 @@ let isHost = false;
 let currentMagnetUrl = null; 
 
 const video = document.getElementById('my-video');
+const videoWrapper = document.getElementById('video-wrapper');
+const viewerOverlay = document.getElementById('viewer-overlay');
+
 const setupSection = document.getElementById('setup-section');
 const roomSection = document.getElementById('room-section');
 const displayRoomId = document.getElementById('display-room-id');
@@ -34,7 +35,6 @@ const roleBadge = document.getElementById('role-badge');
 const hostPanel = document.getElementById('host-panel');
 const inputVideoUrl = document.getElementById('input-video-url');
 const btnLoadVideo = document.getElementById('btn-load-video');
-
 const inputVideoFile = document.getElementById('input-video-file');
 const btnUploadVideo = document.getElementById('btn-upload-video');
 const uploadStatus = document.getElementById('upload-status');
@@ -42,21 +42,22 @@ const uploadText = document.getElementById('upload-text');
 
 const viewerControls = document.getElementById('viewer-controls');
 const volumeSlider = document.getElementById('volume-slider');
-const volPercent = document.getElementById('vol-percent'); // Hiển thị % âm lượng
+const volPercent = document.getElementById('vol-percent');
 const downloadStatus = document.getElementById('download-status');
 const downloadSpeed = document.getElementById('download-speed');
-const btnFullscreen = document.getElementById('btn-fullscreen'); // Nút fullscreen
+const btnFullscreen = document.getElementById('btn-fullscreen');
 
 // ==========================================
 // 3. LOGIC TOÀN MÀN HÌNH & CHỈNH ÂM LƯỢNG
 // ==========================================
+// Phóng to CẢ KHUNG chứa video thay vì chỉ thẻ video để lách luật trình duyệt
 btnFullscreen.addEventListener('click', () => {
-    if (video.requestFullscreen) {
-        video.requestFullscreen();
-    } else if (video.webkitRequestFullscreen) { /* Safari */
-        video.webkitRequestFullscreen();
-    } else if (video.msRequestFullscreen) { /* IE11 */
-        video.msRequestFullscreen();
+    if (videoWrapper.requestFullscreen) {
+        videoWrapper.requestFullscreen();
+    } else if (videoWrapper.webkitRequestFullscreen) { 
+        videoWrapper.webkitRequestFullscreen();
+    } else if (videoWrapper.msRequestFullscreen) { 
+        videoWrapper.msRequestFullscreen();
     }
 });
 
@@ -64,6 +65,15 @@ volumeSlider.addEventListener('input', (e) => {
     const val = parseFloat(e.target.value);
     video.volume = val;
     volPercent.textContent = Math.round(val * 100) + '%';
+});
+
+// Chặn phím tắt (Space, Mũi tên trái/phải) của Người xem
+window.addEventListener('keydown', (e) => {
+    if (!isHost && currentRoomId) {
+        if ([32, 37, 39].includes(e.keyCode)) {
+            e.preventDefault(); 
+        }
+    }
 });
 
 // ==========================================
@@ -114,9 +124,8 @@ function enterRoomUI() {
 function setupHostFeatures() {
     hostPanel.classList.remove('hidden');
     video.setAttribute('controls', 'true');
-    viewerControls.classList.remove('hidden'); // Host cũng có thể dùng nút Fullscreen/Volume riêng
+    viewerControls.classList.remove('hidden');
 
-    // CÁCH 1: LINK TRỰC TIẾP
     btnLoadVideo.addEventListener('click', () => {
         const url = inputVideoUrl.value.trim();
         if (url) {
@@ -125,7 +134,6 @@ function setupHostFeatures() {
         }
     });
 
-    // CÁCH 2: PHÁT P2P (WEBTORRENT)
     btnUploadVideo.addEventListener('click', () => {
         const file = inputVideoFile.files[0];
         if (!file) return alert("Vui lòng chọn một file video!");
@@ -149,7 +157,6 @@ function setupHostFeatures() {
         });
     });
 
-    // Đồng bộ các sự kiện
     video.addEventListener('play', () => {
         db.ref('rooms/' + currentRoomId).update({ state: 'play', currentTime: video.currentTime, timestamp: Date.now() });
     });
@@ -173,12 +180,15 @@ function setupHostFeatures() {
 function setupViewerFeatures() {
     video.removeAttribute('controls');
     viewerControls.classList.remove('hidden');
+    
+    // Bật khiên vô hình chặn click chuột và tắt pointer-events trên video
+    viewerOverlay.classList.remove('hidden');
+    video.style.pointerEvents = 'none';
 
     db.ref('rooms/' + currentRoomId).on('value', snapshot => {
         const data = snapshot.val();
         if (!data) return;
 
-        // Đồng bộ nguồn Video (Link thường hoặc P2P)
         if (data.videoUrl) {
             if (data.isTorrent) {
                 if (currentMagnetUrl !== data.videoUrl) {
@@ -200,12 +210,10 @@ function setupViewerFeatures() {
             }
         }
 
-        // Đồng bộ thời gian
         if (Math.abs(video.currentTime - data.currentTime) > 1.5) {
             video.currentTime = data.currentTime;
         }
 
-        // Đồng bộ Play/Pause
         if (data.state === 'play' && video.paused) {
             video.play().catch(e => console.log("Lỗi tự phát: ", e));
         } else if (data.state === 'pause' && !video.paused) {
