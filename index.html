@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Watch Party cùng bạn bè</title>
+    <title>Watch Party - Mạng Ngang Hàng</title>
     <link rel="stylesheet" href="style.css">
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🎬 Xem Phim Cùng Nhau</h1>
+        <h1>🎬 Xem Phim Cùng Nhau (P2P Miễn Phí)</h1>
 
         <div id="setup-section">
             <div class="box">
@@ -32,8 +34,23 @@
             </div>
 
             <div id="host-panel" class="hidden box">
-                <input type="text" id="input-video-url" placeholder="Dán link video trực tiếp (VD: .mp4, .webm)...">
-                <button id="btn-load-video">Tải Video Mới</button>
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Cách 1: Dán link video (.mp4)</strong></label><br>
+                    <input type="text" id="input-video-url" placeholder="VD: link .mp4, .webm...">
+                    <button id="btn-load-video">Phát Link</button>
+                </div>
+                
+                <hr style="border-color: #333; margin: 15px 0;">
+
+                <div>
+                    <label><strong>Cách 2: Phát trực tiếp file từ máy (P2P - Không giới hạn dung lượng)</strong></label><br>
+                    <input type="file" id="input-video-file" accept="video/mp4, video/webm" style="margin-top: 10px;">
+                    <button id="btn-upload-video">Phát Ngay</button>
+                </div>
+                
+                <div id="upload-status" class="hidden" style="margin-top: 10px; color: #00ff88; font-weight: bold;">
+                    <span id="upload-text">Đang tạo kết nối P2P... Vui lòng không đóng tab này!</span>
+                </div>
             </div>
 
             <div class="video-container">
@@ -45,6 +62,10 @@
             <div id="viewer-controls" class="hidden box">
                 <label for="volume-slider">Âm lượng của bạn:</label>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
+            </div>
+            
+            <div id="download-status" class="hidden box" style="color: #00ff88;">
+                Đang nhận dữ liệu trực tiếp từ Chủ phòng... (<span id="download-speed">0</span> KB/s)
             </div>
         </div>
     </div>
