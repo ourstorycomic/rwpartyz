@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch Party cùng bạn bè</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Xem Phim Cùng Nhau</h1>
+
+        <div id="setup-section">
+            <div class="box">
+                <h3>Tạo phòng mới (Bạn là Chủ phòng)</h3>
+                <button id="btn-create-room">Tạo Phòng</button>
+            </div>
+            <div class="box">
+                <h3>Tham gia phòng</h3>
+                <input type="text" id="input-room-id" placeholder="Nhập ID phòng...">
+                <button id="btn-join-room">Vào Phòng</button>
+            </div>
+        </div>
+
+        <div id="room-section" class="hidden">
+            <div class="room-info">
+                <span>Mã phòng: <strong id="display-room-id"></strong></span>
+                <span id="role-badge"></span>
+            </div>
+
+            <div id="host-panel" class="hidden box">
+                <input type="text" id="input-video-url" placeholder="Dán link video trực tiếp (VD: .mp4, .webm)...">
+                <button id="btn-load-video">Tải Video Mới</button>
+            </div>
+
+            <div class="video-container">
+                <video id="my-video" width="100%">
+                    Trình duyệt của bạn không hỗ trợ thẻ video.
+                </video>
+            </div>
+
+            <div id="viewer-controls" class="hidden box">
+                <label for="volume-slider">Âm lượng của bạn:</label>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
