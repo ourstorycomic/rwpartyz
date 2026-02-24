@@ -1,5 +1,5 @@
 // ==========================================
-// 1. CẤU HÌNH FIREBASE
+// 1. CẤU HÌNH FIREBASE (DÁN CỦA BẠN VÀO ĐÂY)
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyBvhRRIP3zyPL6htL2fgSAAhks5y6EJB7Y",
@@ -23,7 +23,8 @@ const wtClient = new WebTorrent();
 // ==========================================
 let currentRoomId = null;
 let isHost = false;
-let currentMagnetUrl = null; // Lưu giữ link torrent hiện tại để tránh load lại
+let currentMagnetUrl = null; 
+let currentTorrent = null; // Quản lý luồng P2P để dọn dẹp tránh lỗi đen màn hình
 
 const video = document.getElementById('my-video');
 const setupSection = document.getElementById('setup-section');
@@ -40,21 +41,64 @@ const btnUploadVideo = document.getElementById('btn-upload-video');
 const uploadStatus = document.getElementById('upload-status');
 const uploadText = document.getElementById('upload-text');
 
-const viewerControls = document.getElementById('viewer-controls');
 const volumeSlider = document.getElementById('volume-slider');
+const volPercent = document.getElementById('vol-percent');
 const downloadStatus = document.getElementById('download-status');
 const downloadSpeed = document.getElementById('download-speed');
 
 // ==========================================
-// 3. LOGIC TẠO & VÀO PHÒNG
+// 3. LOGIC SIÊU KHUẾCH ĐẠI ÂM THANH (WEB AUDIO API)
+// ==========================================
+let audioCtx = null;
+let gainNode = null;
+
+function initAudioBooster() {
+    // Trình duyệt yêu cầu phải có tương tác của người dùng (click) mới cho bật AudioContext
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaElementSource(video);
+        gainNode = audioCtx.createGain();
+        
+        source.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+// Bắt sự kiện kéo thanh âm lượng cho cả 2 bên
+volumeSlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    volPercent.textContent = Math.round(val * 100) + '%';
+    if (gainNode) {
+        gainNode.gain.value = val; // val = 2 nghĩa là 200%, 3 là 300%
+    }
+});
+
+// Hàm dọn dẹp video cũ để tránh lỗi "Can only pipe to one destination"
+function clearVideoSource() {
+    if (currentTorrent) {
+        wtClient.remove(currentTorrent); // Xóa torrent cũ khỏi bộ nhớ
+        currentTorrent = null;
+    }
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+}
+
+// ==========================================
+// 4. LOGIC TẠO & VÀO PHÒNG
 // ==========================================
 document.getElementById('btn-create-room').addEventListener('click', () => {
+    initAudioBooster(); // Khởi động AudioBooster khi người dùng click
+    
     currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     isHost = true;
 
     db.ref('rooms/' + currentRoomId).set({
         videoUrl: '',
-        isTorrent: false, // Cờ báo hiệu đây là link thường hay link P2P
+        isTorrent: false,
         state: 'pause',
         currentTime: 0,
         timestamp: Date.now()
@@ -65,6 +109,8 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
 });
 
 document.getElementById('btn-join-room').addEventListener('click', () => {
+    initAudioBooster(); // Khởi động AudioBooster khi người dùng click
+
     const id = document.getElementById('input-room-id').value.trim().toUpperCase();
     if (!id) return alert("Vui lòng nhập ID phòng!");
 
@@ -88,36 +134,38 @@ function enterRoomUI() {
 }
 
 // ==========================================
-// 4. LOGIC CHỦ PHÒNG (HOST)
+// 5. LOGIC CHỦ PHÒNG (HOST)
 // ==========================================
 function setupHostFeatures() {
     hostPanel.classList.remove('hidden');
     video.setAttribute('controls', 'true');
 
-    // CÁCH 1: LINK TRỰC TIẾP
+    // DÁN LINK THƯỜNG
     btnLoadVideo.addEventListener('click', () => {
         const url = inputVideoUrl.value.trim();
         if (url) {
+            clearVideoSource();
             db.ref('rooms/' + currentRoomId).update({ videoUrl: url, isTorrent: false, state: 'pause', currentTime: 0 });
             video.src = url;
         }
     });
 
-    // CÁCH 2: PHÁT P2P (WEBTORRENT)
+    // PHÁT P2P (WEBTORRENT)
     btnUploadVideo.addEventListener('click', () => {
         const file = inputVideoFile.files[0];
         if (!file) return alert("Vui lòng chọn một file video!");
+
+        clearVideoSource(); // Rất quan trọng: Xóa luồng cũ trước khi tạo luồng mới
 
         uploadStatus.classList.remove('hidden');
         uploadText.textContent = "Đang tạo luồng P2P... Vui lòng đợi...";
         btnUploadVideo.disabled = true;
 
-        // Seed file video cho mạng P2P
         wtClient.seed(file, (torrent) => {
+            currentTorrent = torrent;
             uploadText.textContent = "✅ Đang phát sóng! VUI LÒNG KHÔNG ĐÓNG TAB NÀY.";
             btnUploadVideo.disabled = false;
 
-            // Lấy Magnet Link và đẩy lên Firebase
             db.ref('rooms/' + currentRoomId).update({ 
                 videoUrl: torrent.magnetURI, 
                 isTorrent: true, 
@@ -125,12 +173,12 @@ function setupHostFeatures() {
                 currentTime: 0 
             });
 
-            // Gắn video P2P vào thẻ video của Host
-            torrent.files[0].renderTo(video);
+            // Gắn video vào Host mà không tự động Play (để đồng bộ)
+            torrent.files[0].renderTo(video, { autoplay: false });
         });
     });
 
-    // Đồng bộ các sự kiện
+    // Đồng bộ các sự kiện play/pause/tua
     video.addEventListener('play', () => {
         db.ref('rooms/' + currentRoomId).update({ state: 'play', currentTime: video.currentTime, timestamp: Date.now() });
     });
@@ -149,42 +197,39 @@ function setupHostFeatures() {
 }
 
 // ==========================================
-// 5. LOGIC NGƯỜI XEM (VIEWER) & ĐỒNG BỘ
+// 6. LOGIC NGƯỜI XEM (VIEWER) & ĐỒNG BỘ
 // ==========================================
 function setupViewerFeatures() {
     video.removeAttribute('controls');
-    viewerControls.classList.remove('hidden');
-
-    volumeSlider.addEventListener('input', (e) => {
-        video.volume = e.target.value;
-    });
 
     db.ref('rooms/' + currentRoomId).on('value', snapshot => {
         const data = snapshot.val();
         if (!data) return;
 
-        // Đồng bộ nguồn Video (Link thường hoặc P2P)
+        // Xử lý nguồn Video
         if (data.videoUrl) {
             if (data.isTorrent) {
-                // Xử lý P2P bằng WebTorrent
+                // Chỉ xử lý nếu link P2P thực sự thay đổi
                 if (currentMagnetUrl !== data.videoUrl) {
                     currentMagnetUrl = data.videoUrl;
                     downloadStatus.classList.remove('hidden');
+                    clearVideoSource(); // Dọn dẹp trước khi nhận luồng mới
                     
                     wtClient.add(data.videoUrl, (torrent) => {
-                        // Hiển thị tốc độ tải
-                        torrent.on('download', (bytes) => {
+                        currentTorrent = torrent;
+                        torrent.on('download', () => {
                             downloadSpeed.textContent = Math.round(torrent.downloadSpeed / 1024);
                         });
                         
-                        // Gắn luồng vào thẻ video
-                        torrent.files[0].renderTo(video);
+                        // Đẩy luồng P2P vào thẻ video
+                        torrent.files[0].renderTo(video, { autoplay: false });
                     });
                 }
             } else {
                 // Xử lý link thường
                 downloadStatus.classList.add('hidden');
                 if (video.src !== data.videoUrl) {
+                    clearVideoSource();
                     video.src = data.videoUrl;
                 }
             }
