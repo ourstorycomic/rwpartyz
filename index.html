@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Watch Party - Mạng Ngang Hàng</title>
+    <title>Watch Party - Mạng Ngang Hàng (P2P)</title>
     <link rel="stylesheet" href="style.css">
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🎬 Xem Phim Cùng Nhau (P2P Miễn Phí)</h1>
+        <h1>🎬 Xem Phim Cùng Nhau (P2P)</h1>
 
         <div id="setup-section">
             <div class="box">
@@ -43,7 +42,7 @@
                 <hr style="border-color: #333; margin: 15px 0;">
 
                 <div>
-                    <label><strong>Cách 2: Phát trực tiếp file từ máy (P2P - Không giới hạn dung lượng)</strong></label><br>
+                    <label><strong>Cách 2: Phát trực tiếp file từ máy (P2P)</strong></label><br>
                     <input type="file" id="input-video-file" accept="video/mp4, video/webm" style="margin-top: 10px;">
                     <button id="btn-upload-video">Phát Ngay</button>
                 </div>
@@ -53,15 +52,19 @@
                 </div>
             </div>
 
+            <div class="box" style="background: #2a0000; border: 1px solid #ff4d4d; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                <div style="flex-grow: 1;">
+                    <label for="volume-slider">🔊 <strong>Siêu Khuếch Đại Âm Thanh:</strong> <span id="vol-percent">100%</span></label>
+                    <input type="range" id="volume-slider" min="0" max="4" step="0.1" value="1" style="width: 100%; margin-top: 10px;">
+                    <small style="color: #ff9999;">Kéo qua mức 100% để tăng âm lượng gốc của file video.</small>
+                </div>
+                <button id="btn-fullscreen" style="padding: 10px 20px; background-color: #ff4d4d; border-radius: 4px; font-weight: bold; cursor: pointer;">🔲 Toàn Màn Hình</button>
+            </div>
+
             <div class="video-container">
                 <video id="my-video" width="100%">
                     Trình duyệt của bạn không hỗ trợ thẻ video.
                 </video>
-            </div>
-
-            <div id="viewer-controls" class="hidden box">
-                <label for="volume-slider">Âm lượng của bạn:</label>
-                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
             </div>
             
             <div id="download-status" class="hidden box" style="color: #00ff88;">
