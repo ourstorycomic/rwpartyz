@@ -52,13 +52,12 @@
                 </div>
             </div>
 
-            <div class="box" style="background: #2a0000; border: 1px solid #ff4d4d; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+            <div id="viewer-controls" class="hidden box" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
                 <div style="flex-grow: 1;">
-                    <label for="volume-slider">🔊 <strong>Siêu Khuếch Đại Âm Thanh:</strong> <span id="vol-percent">100%</span></label>
-                    <input type="range" id="volume-slider" min="0" max="4" step="0.1" value="1" style="width: 100%; margin-top: 10px;">
-                    <small style="color: #ff9999;">Kéo qua mức 100% để tăng âm lượng gốc của file video.</small>
+                    <label for="volume-slider">🔊 <strong>Âm lượng cá nhân:</strong> <span id="vol-percent">100%</span></label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1" style="width: 100%; margin-top: 10px;">
                 </div>
-                <button id="btn-fullscreen" style="padding: 10px 20px; background-color: #ff4d4d; border-radius: 4px; font-weight: bold; cursor: pointer;">🔲 Toàn Màn Hình</button>
+                <button id="btn-fullscreen" style="padding: 10px 20px; background-color: #007bff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white;">🔲 Toàn Màn Hình</button>
             </div>
 
             <div class="video-container">
