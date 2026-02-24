@@ -22,6 +22,8 @@ const wtClient = new WebTorrent();
 let currentRoomId = null;
 let isHost = false;
 let currentMagnetUrl = null; 
+// Tạo một ID ẩn định danh cho trình duyệt hiện tại để đếm người
+const myUserId = Math.random().toString(36).substring(2, 10); 
 
 const video = document.getElementById('my-video');
 const videoWrapper = document.getElementById('video-wrapper');
@@ -31,6 +33,7 @@ const setupSection = document.getElementById('setup-section');
 const roomSection = document.getElementById('room-section');
 const displayRoomId = document.getElementById('display-room-id');
 const roleBadge = document.getElementById('role-badge');
+const userCountDisplay = document.getElementById('user-count'); // Nơi hiển thị số người
 
 const hostPanel = document.getElementById('host-panel');
 const inputVideoUrl = document.getElementById('input-video-url');
@@ -48,9 +51,30 @@ const downloadSpeed = document.getElementById('download-speed');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 
 // ==========================================
-// 3. LOGIC TOÀN MÀN HÌNH & CHỈNH ÂM LƯỢNG
+// 3. LOGIC ĐẾM SỐ NGƯỜI (PRESENCE SYSTEM)
 // ==========================================
-// Phóng to CẢ KHUNG chứa video thay vì chỉ thẻ video để lách luật trình duyệt
+function setupPresence() {
+    const userRef = db.ref(`rooms/${currentRoomId}/users/${myUserId}`);
+    const roomUsersRef = db.ref(`rooms/${currentRoomId}/users`);
+
+    // Lệnh thần thánh: Nếu người dùng đóng tab hoặc rớt mạng, tự động xóa ID của họ khỏi database
+    userRef.onDisconnect().remove();
+
+    // Đánh dấu người này đang có mặt trong phòng
+    userRef.set(true);
+
+    // Lắng nghe sự thay đổi số lượng người trong phòng
+    roomUsersRef.on('value', (snapshot) => {
+        const users = snapshot.val();
+        // Đếm số lượng key trong object users (mỗi key là 1 người)
+        const count = users ? Object.keys(users).length : 0;
+        userCountDisplay.textContent = count;
+    });
+}
+
+// ==========================================
+// 4. LOGIC TOÀN MÀN HÌNH & CHỈNH ÂM LƯỢNG
+// ==========================================
 btnFullscreen.addEventListener('click', () => {
     if (videoWrapper.requestFullscreen) {
         videoWrapper.requestFullscreen();
@@ -67,7 +91,6 @@ volumeSlider.addEventListener('input', (e) => {
     volPercent.textContent = Math.round(val * 100) + '%';
 });
 
-// Chặn phím tắt (Space, Mũi tên trái/phải) của Người xem
 window.addEventListener('keydown', (e) => {
     if (!isHost && currentRoomId) {
         if ([32, 37, 39].includes(e.keyCode)) {
@@ -77,13 +100,14 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ==========================================
-// 4. LOGIC TẠO & VÀO PHÒNG
+// 5. LOGIC TẠO & VÀO PHÒNG
 // ==========================================
 document.getElementById('btn-create-room').addEventListener('click', () => {
     currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     isHost = true;
 
-    db.ref('rooms/' + currentRoomId).set({
+    // Không ghi đè cả phòng nữa để tránh xóa mảng users, chỉ cập nhật info
+    db.ref('rooms/' + currentRoomId).update({
         videoUrl: '',
         isTorrent: false,
         state: 'pause',
@@ -92,6 +116,7 @@ document.getElementById('btn-create-room').addEventListener('click', () => {
     });
 
     enterRoomUI();
+    setupPresence(); // Bật đếm người
     setupHostFeatures();
 });
 
@@ -104,6 +129,7 @@ document.getElementById('btn-join-room').addEventListener('click', () => {
             currentRoomId = id;
             isHost = false;
             enterRoomUI();
+            setupPresence(); // Bật đếm người
             setupViewerFeatures();
         } else {
             alert("Không tìm thấy phòng này!");
@@ -119,7 +145,7 @@ function enterRoomUI() {
 }
 
 // ==========================================
-// 5. LOGIC CHỦ PHÒNG (HOST)
+// 6. LOGIC CHỦ PHÒNG (HOST)
 // ==========================================
 function setupHostFeatures() {
     hostPanel.classList.remove('hidden');
@@ -175,13 +201,12 @@ function setupHostFeatures() {
 }
 
 // ==========================================
-// 6. LOGIC NGƯỜI XEM (VIEWER) & ĐỒNG BỘ
+// 7. LOGIC NGƯỜI XEM (VIEWER) & ĐỒNG BỘ
 // ==========================================
 function setupViewerFeatures() {
     video.removeAttribute('controls');
     viewerControls.classList.remove('hidden');
     
-    // Bật khiên vô hình chặn click chuột và tắt pointer-events trên video
     viewerOverlay.classList.remove('hidden');
     video.style.pointerEvents = 'none';
 
